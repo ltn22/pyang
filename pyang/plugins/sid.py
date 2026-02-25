@@ -55,6 +55,10 @@ class SidPlugin(plugin.PyangPlugin):
                          action="store_true",
                          dest="list_sid",
                          help="Print the list of SID."),
+            optparse.make_option("--sid-extension",
+                         action="store_true",
+                         dest="sid_ext",
+                         help="Add info to the sid file to manipulate CORECONF."),
             optparse.make_option("--sid-finalize",
                          action="store_true",
                          dest="finalize_sid",
@@ -138,6 +142,9 @@ class SidPlugin(plugin.PyangPlugin):
 
         if ctx.opts.list_sid:
             sid_file.list_content = True
+
+        if ctx.opts.sid_ext:
+            sid_file.sid_extension = True
 
         if ctx.opts.finalize_sid:
             print("Will mark unstable allocations finalized")
@@ -241,6 +248,13 @@ OPTIONS
   obtains the list of SIDs assigned or validated. For example:
 
   $ pyang --sid-list --sid-generate-file 20000:100 toaster@2009-11-20.yang
+          
+--sid-extension
+
+   Add non standard entries in the .sid file to facilitate CORECONF manipulation
+   on constrained devices. 
+
+  $ pyang --sid-list --sid-generate-file 20000:100 --sid-extension toaster@2009-11-20.yang
 
 --sid-finalize
 
@@ -310,6 +324,7 @@ class SidFile:
         self.module_revision = ''
         self.output_file_name = ''
         self.update = False
+        self.sid_extension = False
 
     def process_sid_file(self, module):
         # SID are assigned in context of one namespace, the module defines new namespace.
@@ -664,6 +679,9 @@ class SidFile:
         if 'item' not in self.content:
             self.content['item'] = []
 
+        if self.sid_extension and 'key-mapping' not in self.content: 
+            self.content['key-mapping'] = {}
+
         for item in self.content['item']:
             # Set to 'd' deleted, updated to 'o' if present in .yang file
             item['lifecycle'] = 'd'
@@ -717,10 +735,37 @@ class SidFile:
     def collect_inner_data_nodes(self, statements, prefix=""):
         for statement in statements:
             if statement.keyword in self.leaf_keywords:
-                self.merge_item('data', self.get_path(statement, prefix))
+                if self.sid_extension:
+                    for s in statement.substmts: # find type declaration
+                        print (s)
+                        if s.keyword == "type":
+                            if s.i_type_spec.name == "identityref":
+                                typename = "identityref"
+
+                            elif s.i_type_spec.name == "enumeration":
+                                typename = {}
+                                for k, v in s.i_type_spec.enums:
+                                    typename[str(v)] = k
+                            else:
+                                typename = s.arg
+
+                            if typename=="union": # union put all types in an array
+                                typename = []
+                                for t in s.i_type_spec.types:
+                                    typename.append(t.arg)
+                self.merge_item('data', self.get_path(statement, prefix), typename if self.sid_extension else None)
 
             elif statement.keyword in self.container_keywords:
                 self.merge_item('data', self.get_path(statement, prefix))
+                if self.sid_extension: # create key-mapping for list, with the path of the keys as value
+                    if statement.keyword == "list":
+                        keys = []
+        
+                        if hasattr(statement, 'i_key') and statement.i_key:
+                            for k in statement.i_key:
+                                keys.append(self.get_path(k, prefix))
+        
+                        self.content["key-mapping"][self.get_path(statement, prefix)] = keys
                 self.collect_inner_data_nodes(statement.i_children, prefix)
 
             elif statement.keyword in self.choice_keywords:
@@ -795,16 +840,23 @@ class SidFile:
             statement = statement.parent
         return prefix + path
 
-    def merge_item(self, namespace, identifier):
+    def merge_item(self, namespace, identifier, typename=None):
         for item in self.content['item']:
             if (namespace == item['namespace'] and
                     identifier == item['identifier']):
                 item['lifecycle'] = 'o' # Item already assigned
                 return
-        self.content['item'].append(collections.OrderedDict(
-            [('namespace', namespace), ('identifier', identifier),
-             ('status', 'unstable'),
-             ('sid', -1), ('lifecycle', 'n')]))
+            
+        if self.sid_extension and typename is not None:
+            self.content['item'].append(collections.OrderedDict(
+                [('namespace', namespace), ('identifier', identifier),
+                 ('status', 'unstable'),
+                 ('sid', -1), ('lifecycle', 'n'), ('type', typename)]))
+        else:   
+            self.content['item'].append(collections.OrderedDict(
+                [('namespace', namespace), ('identifier', identifier),
+                ('status', 'unstable'),
+                ('sid', -1), ('lifecycle', 'n')]))
         self.is_consistent = False
 
     ########################################################
@@ -989,6 +1041,12 @@ class SidFile:
     DESCRIPTION_REGEX = (r"Generated by pyang \d+(.\d+)?(.\d+)?(.)*" +
         r"at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")
 
+    def find_sid(self, id):
+        for e in self.content['item']:
+            if e['identifier'] == id:
+                return e['sid']
+        return None
+
     def generate_file(self):
         for item in self.content['item']:
             del item['lifecycle']
@@ -1042,6 +1100,18 @@ class SidFile:
                     print("  finalized %s" % (item['identifier']))
                     # status 'stable' is default enum
                     del item['status']
+
+        if self.sid_extension:
+            key_mapping_sid = {}
+            for k, v in self.content['key-mapping'].items():
+                k_sid = self.find_sid(k)
+                v_sids = []
+                for e in v:
+                    v_sids.append(self.find_sid(e))
+                key_mapping_sid[k_sid] = v_sids
+
+            sid_cont['key-mapping'] = key_mapping_sid
+
 
         with open(self.output_file_name, 'w', encoding='utf-8') as outfile:
             outfile.truncate(0)
