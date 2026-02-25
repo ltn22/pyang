@@ -737,7 +737,6 @@ class SidFile:
             if statement.keyword in self.leaf_keywords:
                 if self.sid_extension:
                     for s in statement.substmts: # find type declaration
-                        print (s)
                         if s.keyword == "type":
                             if s.i_type_spec.name == "identityref":
                                 typename = "identityref"
