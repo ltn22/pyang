@@ -735,24 +735,7 @@ class SidFile:
     def collect_inner_data_nodes(self, statements, prefix=""):
         for statement in statements:
             if statement.keyword in self.leaf_keywords:
-                if self.sid_extension:
-                    for s in statement.substmts: # find type declaration
-                        if s.keyword == "type":
-                            if s.i_type_spec.name == "identityref":
-                                typename = "identityref"
-
-                            elif s.i_type_spec.name == "enumeration":
-                                typename = {}
-                                for k, v in s.i_type_spec.enums:
-                                    typename[str(v)] = k
-                            else:
-                                typename = s.arg
-
-                            if typename=="union": # union put all types in an array
-                                typename = []
-                                for t in s.i_type_spec.types:
-                                    typename.append(t.arg)
-                self.merge_item('data', self.get_path(statement, prefix), typename if self.sid_extension else None)
+                self.collect_in_leaf(statement)
 
             elif statement.keyword in self.container_keywords:
                 self.merge_item('data', self.get_path(statement, prefix))
@@ -789,24 +772,7 @@ class SidFile:
     def collect_in_substmts(self, substmts):
         for statement in substmts:
             if statement.keyword in self.leaf_keywords:
-                if self.sid_extension:
-                    for s in statement.substmts: # find type declaration
-                        if s.keyword == "type":
-                            if s.i_type_spec.name == "identityref":
-                                typename = "identityref"
-
-                            elif s.i_type_spec.name == "enumeration":
-                                typename = {}
-                                for k, v in s.i_type_spec.enums:
-                                    typename[str(v)] = k
-                            else:
-                                typename = s.arg
-
-                            if typename=="union": # union put all types in an array
-                                typename = []
-                                for t in s.i_type_spec.types:
-                                    typename.append(t.arg)
-                self.merge_item('data', self.get_path(statement), typename if self.sid_extension else None)
+                self.collect_in_leaf(statement)
 
             elif (statement.keyword in self.container_keywords or
                   statement.keyword in self.choice_keywords):
@@ -817,6 +783,26 @@ class SidFile:
                 prefix = self.get_path(statement.parent)
                 self.collect_inner_data_nodes(statement.i_grouping.i_children,
                                               prefix)
+
+    def collect_in_leaf(self, statement):
+        if self.sid_extension:
+            for s in statement.substmts: # find type declaration
+                if s.keyword == "type":
+                    if s.i_type_spec.name == "identityref":
+                        typename = "identityref"
+
+                    elif s.i_type_spec.name == "enumeration":
+                        typename = {}
+                        for k, v in s.i_type_spec.enums:
+                            typename[str(v)] = k
+                    else:
+                        typename = s.arg
+
+                    if typename=="union": # union put all types in an array
+                        typename = []
+                        for t in s.i_type_spec.types:
+                            typename.append(t.arg)
+        self.merge_item('data', self.get_path(statement), typename if self.sid_extension else None)
 
     def get_path(self, statement, prefix=""):
         path = ""
