@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Lancer pyang --sid-generate-file=100000:200 --sid-list --sid-extension ietf-schc@2026-04-05.yang",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/pyang",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "args": [
+        "--sid-generate-file=100000:200",
+        "--sid-list",
+        "--sid-extension",
+        "ietf-schc@2026-04-05.yang"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}
