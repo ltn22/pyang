@@ -802,7 +802,7 @@ class SidFile:
                         typename = []
                         for t in s.i_type_spec.types:
                             if t.i_type_spec.name == "identityref":
-                                typename.append("identityref")
+                                typename.insert(0, "identityref") # put identityref first in the list as it is more specific than other types
                             else:
                                 typename.append(t.arg)
         self.merge_item('data', self.get_path(statement), typename if self.sid_extension else None)
