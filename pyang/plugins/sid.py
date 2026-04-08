@@ -800,6 +800,7 @@ class SidFile:
 
                     if typename=="union": # union put all types in an array
                         typename = []
+                        print ("UNION type found for %s, collecting types in an array" % self.get_path(statement))
                         for t in s.i_type_spec.types:
                             if s.i_type_spec.name == "identityref":
                                 typename.append("identityref")
