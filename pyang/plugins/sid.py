@@ -801,7 +801,10 @@ class SidFile:
                     if typename=="union": # union put all types in an array
                         typename = []
                         for t in s.i_type_spec.types:
-                            typename.append(t.arg)
+                            if s.i_type_spec.name == "identityref":
+                                typename.append("identityref")
+                            else:
+                                typename.append(t.arg)
         self.merge_item('data', self.get_path(statement), typename if self.sid_extension else None)
 
     def get_path(self, statement, prefix=""):
