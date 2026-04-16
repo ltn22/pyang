@@ -519,6 +519,11 @@ class SidFile:
                     raise SidFileError("key 'item', invalid value.")
                 self.validate_items(self.content[key])
 
+            elif key == 'key-mapping':
+                if not isinstance(self.content[key], dict):
+                    raise SidFileError("key 'key-mapping', invalid value.")
+                self.validate_key_mapping(self.content[key])
+
             else:
                 raise SidFileError("invalid field '%s'." % key)
 
@@ -615,6 +620,44 @@ class SidFile:
 
             if sid_absent:
                 raise SidFileError("mandatory field 'sid' not present")
+
+    def validate_key_mapping(self, key_mapping):
+        """Validate key-mapping structure.
+
+        key-mapping maps list SIDs to arrays of their key field SIDs.
+        Format: {"list_sid": [key1_sid, key2_sid, ...], ...}
+        """
+        for key, value in key_mapping.items():
+            # Validate key is a string representation of an integer (SID)
+            if not isinstance(key, str):
+                raise SidFileError(
+                    "key-mapping key must be a string, got '%s'." % type(key).__name__)
+
+            try:
+                key_sid = int(key)
+                if key_sid <= 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                raise SidFileError(
+                    "key-mapping key '%s' must be a positive integer." % key)
+
+            # Validate value is a list/array
+            if not isinstance(value, list):
+                raise SidFileError(
+                    "key-mapping value for key '%s' must be a list, got '%s'."
+                    % (key, type(value).__name__))
+
+            # Validate each element in the list is a positive integer (SID)
+            for idx, element in enumerate(value):
+                if not isinstance(element, util.int_types):
+                    raise SidFileError(
+                        "key-mapping value for key '%s' at index %d must be an integer, got '%s'."
+                        % (key, idx, type(element).__name__))
+
+                if element <= 0:
+                    raise SidFileError(
+                        "key-mapping value for key '%s' at index %d must be a positive integer, got %d."
+                        % (key, idx, element))
 
     ########################################################
     # Verify if each range defined in the .sid file is distinct

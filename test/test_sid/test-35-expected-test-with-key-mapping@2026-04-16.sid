@@ -1,0 +1,83 @@
+{
+  "ietf-sid-file:sid-file": {
+    "module-name": "test-with-key-mapping",
+    "module-revision": "2026-04-16",
+    "sid-file-status": "unpublished",
+    "assignment-range": [
+      {
+        "entry-point": "40000",
+        "size": "20"
+      }
+    ],
+    "item": [
+      {
+        "namespace": "module",
+        "identifier": "test-with-key-mapping",
+        "status": "unstable",
+        "sid": "40000"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices",
+        "status": "unstable",
+        "sid": "40001"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/device",
+        "status": "unstable",
+        "sid": "40002"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/device/device-id",
+        "status": "unstable",
+        "sid": "40003",
+        "type": "uint32"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/device/name",
+        "status": "unstable",
+        "sid": "40004",
+        "type": "string"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/interface",
+        "status": "unstable",
+        "sid": "40005"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/interface/if-name",
+        "status": "unstable",
+        "sid": "40006",
+        "type": "string"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/interface/if-type",
+        "status": "unstable",
+        "sid": "40007",
+        "type": "string"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/test-with-key-mapping:devices/interface/status",
+        "status": "unstable",
+        "sid": "40008",
+        "type": "string"
+      }
+    ],
+    "key-mapping": {
+      "40002": [
+        40003
+      ],
+      "40005": [
+        40006,
+        40007
+      ]
+    }
+  }
+}

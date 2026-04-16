@@ -1,0 +1,2 @@
+ERROR in 'test37-bad-key-mapping.sid', key-mapping value for key '40002' at index 0 must be an integer, got 'str'.
+Checking consistency of 'test37-bad-key-mapping.sid'

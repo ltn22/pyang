@@ -2,10 +2,12 @@ PYANG?= pyang
 
 .PHONY: test test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 \
 	test12 test14 test15 test16 test17 test18 test19 test20 test21 test22 test23 \
-	test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34
+	test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34 \
+	test35 test36 test37 test38
 test: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 \
 	test12 test14 test15 test16 test17 test18 test19 test20 test21 test22 \
-	test23 test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34
+	test23 test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34 \
+	test35 test36 test37 test38
 
 test1:
 	# Test help
@@ -195,4 +197,22 @@ test34: aug-a@2025-08-25.yang aug-b@2025-08-25.yang aug-c@2025-08-25.yang test-3
 	$(PYANG) --sid-generate-file 1200:100 aug-c@2025-08-25.yang --sid-finalize >/dev/null 2>/dev/null
 	diff -b aug-c@2025-08-25.sid test-34-expected-aug-c.sid
 	rm aug-a@2025-08-25.sid aug-b@2025-08-25.sid aug-c@2025-08-25.sid
+
+test35: test-with-key-mapping.yang test-35-expected-output.txt test-35-expected-test-with-key-mapping@2026-04-16.sid
+	# Test key-mapping generation with --sid-extension
+	$(PYANG) --sid-generate-file 40000:20 --sid-extension test-with-key-mapping.yang 2>&1 | diff -b test-35-expected-output.txt -
+	diff -b test-with-key-mapping@2026-04-16.sid test-35-expected-test-with-key-mapping@2026-04-16.sid
+	rm test-with-key-mapping@2026-04-16.sid
+
+test36: test36-bad-key-mapping.sid test-with-key-mapping.yang test-36-expected-output.txt
+	# Test key-mapping validation: value must be a list
+	$(PYANG) --sid-check-file test36-bad-key-mapping.sid test-with-key-mapping.yang 2>&1 | diff -b test-36-expected-output.txt -
+
+test37: test37-bad-key-mapping.sid test-with-key-mapping.yang test-37-expected-output.txt
+	# Test key-mapping validation: list elements must be integers
+	$(PYANG) --sid-check-file test37-bad-key-mapping.sid test-with-key-mapping.yang 2>&1 | diff -b test-37-expected-output.txt -
+
+test38: test38-bad-key-mapping.sid test-with-key-mapping.yang test-38-expected-output.txt
+	# Test key-mapping validation: list elements must be positive integers
+	$(PYANG) --sid-check-file test38-bad-key-mapping.sid test-with-key-mapping.yang 2>&1 | diff -b test-38-expected-output.txt -
 

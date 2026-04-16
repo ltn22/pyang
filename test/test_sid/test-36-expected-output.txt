@@ -1,0 +1,2 @@
+ERROR in 'test36-bad-key-mapping.sid', key-mapping value for key '40002' must be a list, got 'str'.
+Checking consistency of 'test36-bad-key-mapping.sid'
