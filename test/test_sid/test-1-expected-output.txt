@@ -69,6 +69,13 @@ OPTIONS
 
   $ pyang --sid-list --sid-generate-file 20000:100 toaster@2009-11-20.yang
 
+--sid-extension
+
+   Add non standard entries in the .sid file to facilitate CORECONF manipulation
+   on constrained devices. 
+
+  $ pyang --sid-list --sid-generate-file 20000:100 --sid-extension toaster@2009-11-20.yang
+
 --sid-finalize
 
   New allocations when during development of a protocol are marked as

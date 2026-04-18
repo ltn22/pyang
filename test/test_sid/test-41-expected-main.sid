@@ -1,0 +1,135 @@
+{
+  "ietf-sid-file:sid-file": {
+    "module-name": "main",
+    "module-revision": "2026-03-20",
+    "sid-file-status": "unpublished",
+    "assignment-range": [
+      {
+        "entry-point": "1000",
+        "size": "100"
+      }
+    ],
+    "item": [
+      {
+        "namespace": "module",
+        "identifier": "a-sub",
+        "status": "unstable",
+        "sid": "1000"
+      },
+      {
+        "namespace": "module",
+        "identifier": "b-sub",
+        "status": "unstable",
+        "sid": "1001"
+      },
+      {
+        "namespace": "module",
+        "identifier": "main",
+        "status": "unstable",
+        "sid": "1002"
+      },
+      {
+        "namespace": "module",
+        "identifier": "x-sub",
+        "status": "unstable",
+        "sid": "1003"
+      },
+      {
+        "namespace": "identity",
+        "identifier": "a-misc-id",
+        "status": "unstable",
+        "sid": "1004"
+      },
+      {
+        "namespace": "identity",
+        "identifier": "b-misc-id",
+        "status": "unstable",
+        "sid": "1005"
+      },
+      {
+        "namespace": "identity",
+        "identifier": "base-identity",
+        "status": "unstable",
+        "sid": "1006"
+      },
+      {
+        "namespace": "identity",
+        "identifier": "derived-identity",
+        "status": "unstable",
+        "sid": "1007"
+      },
+      {
+        "namespace": "identity",
+        "identifier": "x-misc-id",
+        "status": "unstable",
+        "sid": "1008"
+      },
+      {
+        "namespace": "feature",
+        "identifier": "a-sub-f",
+        "status": "unstable",
+        "sid": "1009"
+      },
+      {
+        "namespace": "feature",
+        "identifier": "b-sub-f",
+        "status": "unstable",
+        "sid": "1010"
+      },
+      {
+        "namespace": "feature",
+        "identifier": "main-f",
+        "status": "unstable",
+        "sid": "1011"
+      },
+      {
+        "namespace": "feature",
+        "identifier": "x-sub-f",
+        "status": "unstable",
+        "sid": "1012"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:a-system",
+        "status": "unstable",
+        "sid": "1013"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:a-system/name",
+        "status": "unstable",
+        "sid": "1014"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:a-system/uptime",
+        "status": "unstable",
+        "sid": "1015"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:b-a",
+        "status": "unstable",
+        "sid": "1016"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:b-a/value",
+        "status": "unstable",
+        "sid": "1017"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:c",
+        "status": "unstable",
+        "sid": "1018"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/main:c/counter",
+        "status": "unstable",
+        "sid": "1019"
+      }
+    ]
+  }
+}

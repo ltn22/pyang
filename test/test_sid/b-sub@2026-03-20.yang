@@ -1,0 +1,17 @@
+submodule b-sub {
+  yang-version 1.1;
+  belongs-to main {
+    prefix main;
+  }
+
+  revision 2026-03-20;
+
+  feature b-sub-f;
+  identity b-misc-id;
+
+  container c {
+    leaf counter {
+      type uint32;
+    }
+  }
+}
