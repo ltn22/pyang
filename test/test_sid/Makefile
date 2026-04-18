@@ -2,10 +2,13 @@ PYANG?= pyang
 
 .PHONY: test test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 \
 	test12 test14 test15 test16 test17 test18 test19 test20 test21 test22 test23 \
-	test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34
+	test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34 \
+	test41
+
 test: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 \
 	test12 test14 test15 test16 test17 test18 test19 test20 test21 test22 \
-	test23 test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34
+	test23 test24 test25 test26 test27 test28 test29 test30 test31 test32 test33 test34 \
+	test41
 
 test1:
 	# Test help
@@ -195,4 +198,9 @@ test34: aug-a@2025-08-25.yang aug-b@2025-08-25.yang aug-c@2025-08-25.yang test-3
 	$(PYANG) --sid-generate-file 1200:100 aug-c@2025-08-25.yang --sid-finalize >/dev/null 2>/dev/null
 	diff -b aug-c@2025-08-25.sid test-34-expected-aug-c.sid
 	rm aug-a@2025-08-25.sid aug-b@2025-08-25.sid aug-c@2025-08-25.sid
+
+test41: main@2026-03-20.yang a-sub@2026-03-20.yang b-sub@2026-03-20.yang x-sub@2026-03-20.yang
+	$(PYANG) --sid-generate-file 1000:100 main@2026-03-20.yang >/dev/null 2>/dev/null
+	diff -b main@2026-03-20.sid test-41-expected-main.sid
+	rm main@2026-03-20.sid
 

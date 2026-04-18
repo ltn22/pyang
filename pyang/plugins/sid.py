@@ -681,9 +681,11 @@ class SidFile:
             if statement.keyword in self.leaf_keywords:
                 self.merge_item('data', self.get_path(statement))
 
-            elif (statement.keyword in self.module_container_keywords or 
-                  statement.keyword in self.choice_keywords):
+            elif statement.keyword in self.module_container_keywords:
                 self.merge_item('data', self.get_path(statement))
+                self.collect_inner_data_nodes(statement.i_children)
+
+            elif statement.keyword in self.choice_keywords:
                 self.collect_inner_data_nodes(statement.i_children)
 
             elif statement.keyword == 'rpc':
@@ -707,7 +709,13 @@ class SidFile:
 
         for substmt in module.substmts:
             if substmt.keyword == 'augment':
-                self.collect_in_substmts(substmt.substmts)
+                target = substmt.i_target_node
+                if target.keyword != 'choice' and target.parent not in ('module', 'submodule'):
+                    self.collect_in_substmts(substmt.substmts)
+                else:
+                    # Do not emit items for top-level case nodes (case nodes children of toplevel choice)
+                    for case_child in substmt.i_children:
+                        self.collect_in_substmts(case_child.substmts)
             elif self.has_yang_data_extension(substmt):
                 self.collect_in_substmts(substmt.substmts)
             elif substmt.keyword == \
@@ -760,33 +768,36 @@ class SidFile:
     def get_path(self, statement, prefix=""):
         path = ""
 
-        #breakpoint()
-
         while statement.i_module is not None:
             if (statement.keyword != 'grouping'
                     and not self.has_yang_data_extension(statement)):
-                # Locate the data node parent
-                parent = statement.parent
-                while parent.i_module is not None:
-                    if (parent.keyword in self.module_keywords or
-                            parent.keyword ==
+                module = statement.parent
+                while module.i_module is not None:
+                    if (module.keyword in self.module_keywords or
+                            module.keyword ==
                             ('ietf-yang-structure-ext', 'structure') or
-                            parent.keyword ==
+                            module.keyword ==
                             ('ietf-yang-structure-ext', 'augment-structure')):
                         break
-                    parent = parent.parent
+                    module = module.parent
 
+                parent_is_toplevel_case = (statement.parent.keyword == 'case' and
+                        statement.parent.parent.parent.keyword in ("module", "submodule"))
+                if parent_is_toplevel_case:
+                    path = "/" + statement.i_module.arg + ":" + statement.arg \
+                            + path
+                    break
                 if (prefix != "" or
-                        (parent.i_module is not None and
-                         parent.i_module == statement.i_module) or
-                        (statement.keyword == 'case' and 
+                        (module.i_module is not None and
+                         module.i_module == statement.i_module) or
+                        (statement.keyword == 'case' and
                          statement.i_module == statement.parent.i_module) or
-                        (statement.parent.keyword == 'case' and 
+                        (statement.parent.keyword == 'case' and
                          statement.i_module == statement.parent.i_module)):
                     if statement.keyword not in ('case', 'choice'):
                         path = "/" + statement.arg + path
                 else:
-                    path = "/" + statement.i_module.arg + ":" + statement.arg \
+                    path = "/" + statement.main_module().arg + ":" + statement.arg \
                             + path
 
             statement = statement.parent

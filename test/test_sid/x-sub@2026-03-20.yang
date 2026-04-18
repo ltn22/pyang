@@ -1,0 +1,19 @@
+submodule x-sub {
+  yang-version 1.1;
+  belongs-to main {
+    prefix main;
+  }
+
+  revision 2026-03-20;
+
+  feature x-sub-f;
+  identity x-misc-id;
+
+  /* TODO does not work
+   * augment "/main:a-system" {
+   *  leaf user {
+   *    type string;
+   *  }
+   *}
+   */
+}

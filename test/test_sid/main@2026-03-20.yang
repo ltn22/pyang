@@ -1,0 +1,31 @@
+module main {
+  yang-version 1.1;
+  namespace "urn:example:main";
+  prefix m;
+
+  include a-sub;
+  include b-sub {
+    revision-date 2026-03-20;
+  }
+  include x-sub {
+    revision-date 2026-03-20;
+  }
+
+  revision 2026-03-20;
+
+  feature main-f;
+
+  identity base-identity;
+  identity derived-identity {
+    base base-identity;
+  }
+
+  container a-system {
+    leaf name {
+      type string;
+    }
+    leaf uptime {
+      type string;
+    }
+  }
+}

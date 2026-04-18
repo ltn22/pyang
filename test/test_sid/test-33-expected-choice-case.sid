@@ -20,123 +20,78 @@
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box",
+        "identifier": "/choice-case:a",
         "sid": "60002"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed",
+        "identifier": "/choice-case:b",
         "sid": "60003"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed/ipv4_prefix",
+        "identifier": "/choice-case:box",
         "sid": "60004"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed/ipv4_prefix/ipv4_length",
+        "identifier": "/choice-case:box/ipv4_length",
         "sid": "60005"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed/ipv4_prefix/ipv4_network",
+        "identifier": "/choice-case:box/ipv4_network",
         "sid": "60006"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed/ipv6_prefix",
+        "identifier": "/choice-case:box/ipv6_length",
         "sid": "60007"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed/ipv6_prefix/ipv6_length",
+        "identifier": "/choice-case:box/ipv6_network",
         "sid": "60008"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/boxed/ipv6_prefix/ipv6_network",
+        "identifier": "/choice-case:box/pair",
         "sid": "60009"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case",
+        "identifier": "/choice-case:box/pair/s",
         "sid": "60010"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/pair",
+        "identifier": "/choice-case:box/pair/t",
         "sid": "60011"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/pair/pair",
+        "identifier": "/choice-case:box/triple",
         "sid": "60012"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/pair/pair/s",
+        "identifier": "/choice-case:box/triple/x",
         "sid": "60013"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/pair/pair/t",
+        "identifier": "/choice-case:box/triple/y",
         "sid": "60014"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/triple",
+        "identifier": "/choice-case:box/triple/z",
         "sid": "60015"
       },
       {
         "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/triple/triple",
+        "identifier": "/choice-case:c",
         "sid": "60016"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/triple/triple/x",
-        "sid": "60017"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/triple/triple/y",
-        "sid": "60018"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:box/implicit_case/triple/triple/z",
-        "sid": "60019"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:top-level",
-        "sid": "60020"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:top-level/ab",
-        "sid": "60021"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:top-level/ab/a",
-        "sid": "60022"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:top-level/ab/b",
-        "sid": "60023"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:top-level/c",
-        "sid": "60024"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/choice-case:top-level/c/c",
-        "sid": "60025"
       }
     ]
   }
