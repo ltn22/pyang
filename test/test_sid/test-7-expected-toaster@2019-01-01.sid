@@ -4,6 +4,7 @@
     "module-revision": "2019-01-01",
     "sid-file-version": 2,
     "sid-file-status": "unpublished",
+    "description": "pyang description",
     "assignment-range": [
       {
         "entry-point": "20000",
@@ -80,7 +81,7 @@
         "identifier": "/toaster:cancel-toast/output",
         "status": "unstable",
         "sid": "20010"
-      }, 
+      },
       {
         "namespace": "data",
         "identifier": "/toaster:make-toast",

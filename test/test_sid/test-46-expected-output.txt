@@ -1,0 +1,2 @@
+ERROR in 'test46-bad-key-mapping.sid', key-mapping value for key '40002' at index 0 must be a positive integer, got -100.
+Checking consistency of 'test46-bad-key-mapping.sid'

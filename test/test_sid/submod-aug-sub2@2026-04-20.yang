@@ -1,0 +1,19 @@
+submodule submod-aug-sub2 {
+  yang-version 1.1;
+
+  belongs-to submod-aug-main {
+    prefix sam;
+  }
+
+  import submod-aug-dest {
+    prefix sad;
+  }
+
+  revision 2026-04-20;
+
+  augment "/sad:destination" {
+    leaf new-node-sub2 {
+      type uint32;
+    }
+  }
+}

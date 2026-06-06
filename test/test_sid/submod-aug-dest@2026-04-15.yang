@@ -1,0 +1,11 @@
+module submod-aug-dest {
+  yang-version 1.1;
+
+  prefix sad;
+  namespace "http://example.com/ns/submod-aug-dest";
+
+  revision 2026-04-15;
+
+  container destination {
+  }
+}

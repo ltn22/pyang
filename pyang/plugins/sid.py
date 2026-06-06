@@ -12,13 +12,15 @@ import optparse
 import sys
 import collections
 import re
-import os
 import errno
 import json
 import copy
+from datetime import datetime, timezone
 from json import JSONDecodeError
 
-
+import pyang
+import pyang.statements as statements
+import pyang.context as context
 from pyang import plugin
 from pyang import util
 from pyang import error
@@ -182,6 +184,7 @@ YANG Schema Item iDentifiers (SID) are globally unique unsigned integers used
 to identify YANG items. SIDs are used instead of names to save space in
 constrained applications such as COREconf. This plugin is used to automatically
 generate and updated .sid files used to persist and distribute SID assignments.
+Note that the yang-filename must contain a YANG module not a YANG submodule.
 
 
 COMMANDS
@@ -229,7 +232,7 @@ OPTIONS
 
   $ pyang --sid-update-file toaster@2009-11-20.sid toaster@2009-12-28.yang
 
--- sid-check-file
+--sid-check-file
 
   The --sid-check-file option can be used at any time to verify if a .sid file
   need to be updated.
@@ -247,11 +250,11 @@ OPTIONS
   obtains the list of SIDs assigned or validated. For example:
 
   $ pyang --sid-list --sid-generate-file 20000:100 toaster@2009-11-20.yang
-          
+
 --sid-extension
 
    Add non standard entries in the .sid file to facilitate CORECONF manipulation
-   on constrained devices. 
+   on constrained devices.
 
   $ pyang --sid-list --sid-generate-file 20000:100 --sid-extension toaster@2009-11-20.yang
 
@@ -322,10 +325,14 @@ class SidFile:
         self.module_name = ''
         self.module_revision = ''
         self.output_file_name = ''
-        self.update = False
         self.sid_extension = False
+        self.update = False
 
     def process_sid_file(self, module):
+        # SID are assigned in context of one namespace, the module defines new namespace.
+        # All submodule live in the parent namespace.
+        if module.keyword == 'submodule':
+            raise SidParsingError(".sid files can be only generated for YANG modules. Generation of .sid files for YANG submodules is prohibited.")
         self.module_name = module.i_modulename
         self.module_revision = util.get_latest_revision(module)
         if self.module_revision != 'unknown':
@@ -345,7 +352,7 @@ class SidFile:
                 raise SidParsingError("File '%s' is not a .sid file"
                                       % self.input_file_name)
 
-            with open(self.input_file_name) as f:
+            with open(self.input_file_name, encoding='utf-8') as f:
                 cont = json.load(f)
 
             sid_cont = cont.get(self.IETF_SID_FILE, None)
@@ -509,22 +516,28 @@ class SidFile:
                 self.validate_dep_revisions(self.content[key])
 
             elif key == 'assignment-range':
+                assignment_ranges_absent = False
                 if not isinstance(self.content[key], list):
                     raise SidFileError("key 'assignment-range', " +
                                        "invalid  value.")
                 self.validate_ranges(self.content[key])
 
             elif key == 'item':
+                items_absent = False
                 if not isinstance(self.content[key], list):
                     raise SidFileError("key 'item', invalid value.")
                 self.validate_items(self.content[key])
+
+            elif key == 'key-mapping':
+                if not isinstance(self.content[key], dict):
+                    raise SidFileError("key 'key-mapping', invalid value.")
+                self.validate_key_mapping(self.content[key])
 
             else:
                 raise SidFileError("invalid field '%s'." % key)
 
         if module_name_absent:
             raise SidFileError("mandatory field 'module-name' not present")
-
 
     @staticmethod
     def validate_dep_revisions(revisions):
@@ -541,7 +554,6 @@ class SidFile:
 
             if len(dep_rev) != 2:
                 raise SidFileError("unknown key in 'dependency-revision' list")
-
 
     @staticmethod
     def validate_ranges(ranges):
@@ -616,6 +628,44 @@ class SidFile:
             if sid_absent:
                 raise SidFileError("mandatory field 'sid' not present")
 
+    def validate_key_mapping(self, key_mapping):
+        """Validate key-mapping structure.
+
+        key-mapping maps list SIDs to arrays of their key field SIDs.
+        Format: {"list_sid": [key1_sid, key2_sid, ...], ...}
+        """
+        for key, value in key_mapping.items():
+            # Validate key is a string representation of an integer (SID)
+            if not isinstance(key, str):
+                raise SidFileError(
+                    "key-mapping key must be a string, got '%s'." % type(key).__name__)
+
+            try:
+                key_sid = int(key)
+                if key_sid <= 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                raise SidFileError(
+                    "key-mapping key '%s' must be a positive integer." % key)
+
+            # Validate value is a list/array
+            if not isinstance(value, list):
+                raise SidFileError(
+                    "key-mapping value for key '%s' must be a list, got '%s'."
+                    % (key, type(value).__name__))
+
+            # Validate each element in the list is a positive integer (SID)
+            for idx, element in enumerate(value):
+                if not isinstance(element, util.int_types):
+                    raise SidFileError(
+                        "key-mapping value for key '%s' at index %d must be an integer, got '%s'."
+                        % (key, idx, type(element).__name__))
+
+                if element <= 0:
+                    raise SidFileError(
+                        "key-mapping value for key '%s' at index %d must be a positive integer, got %d."
+                        % (key, idx, element))
+
     ########################################################
     # Verify if each range defined in the .sid file is distinct
     def validate_overlapping_ranges(self):
@@ -649,7 +699,7 @@ class SidFile:
             last_sid = sid
 
     def out_of_ranges(self, sid):
-        for arange in self.content.get('assignment-range') or []:
+        for arange in self.content.get('assignment-range', []):
             if arange['entry-point'] <= sid and \
                     sid < arange['entry-point'] + arange['size']:
                 return False
@@ -670,6 +720,22 @@ class SidFile:
     def has_yang_data_extension(statement):
         try:
             return statement.i_extension.arg == 'yang-data'
+
+        except AttributeError:
+            return False
+
+    @staticmethod
+    def has_structure_extension(statement):
+        try:
+            return statement.i_extension.arg == 'structure'
+
+        except AttributeError:
+            return False
+
+    @staticmethod
+    def has_yang_structure_extension(statement):
+        try:
+            return statement.i_extension.arg == 'structure'
         except AttributeError:
             return False
 
@@ -679,7 +745,7 @@ class SidFile:
         if 'item' not in self.content:
             self.content['item'] = []
 
-        if self.sid_extension and 'key-mapping' not in self.content: 
+        if self.sid_extension and 'key-mapping' not in self.content:
             self.content['key-mapping'] = {}
 
         for item in self.content['item']:
@@ -699,9 +765,11 @@ class SidFile:
             if statement.keyword in self.leaf_keywords:
                 self.merge_item('data', self.get_path(statement))
 
-            elif (statement.keyword in self.module_container_keywords or 
-                  statement.keyword in self.choice_keywords):
+            elif statement.keyword in self.module_container_keywords:
                 self.merge_item('data', self.get_path(statement))
+                self.collect_inner_data_nodes(statement.i_children)
+
+            elif statement.keyword in self.choice_keywords:
                 self.collect_inner_data_nodes(statement.i_children)
 
             elif statement.keyword == 'rpc':
@@ -723,9 +791,18 @@ class SidFile:
         for identity in module.i_identities:
             self.merge_item('identity', identity)
 
+
         for substmt in module.substmts:
             if substmt.keyword == 'augment':
-                self.collect_in_substmts(substmt.substmts)
+                target = substmt.i_target_node
+                if target.keyword != 'choice' and target.parent not in ('module', 'submodule'):
+                    self.collect_in_substmts(substmt.substmts)
+                else:
+                    # Do not emit items for top-level case nodes (case nodes children of toplevel choice)
+                    for case_child in substmt.i_children:
+                        self.collect_in_substmts(case_child.substmts)
+            elif substmt.keyword == 'include':
+                self.collect_augment_in_submod(substmt, module.i_ctx)
             elif self.has_yang_data_extension(substmt):
                 self.collect_in_substmts(substmt.substmts)
             elif substmt.keyword == \
@@ -742,11 +819,11 @@ class SidFile:
                 if self.sid_extension: # create key-mapping for list, with the path of the keys as value
                     if statement.keyword == "list":
                         keys = []
-        
+
                         if hasattr(statement, 'i_key') and statement.i_key:
                             for k in statement.i_key:
                                 keys.append(self.get_path(k, prefix))
-        
+
                         self.content["key-mapping"][self.get_path(statement, prefix)] = keys
                 self.collect_inner_data_nodes(statement.i_children, prefix)
 
@@ -757,6 +834,8 @@ class SidFile:
             elif statement.keyword == 'action':
                 self.merge_item('data', self.get_path(statement, prefix))
                 for substmt in statement.i_children:
+                    self.merge_item('data', self.get_path(statement, prefix))
+
                     if substmt.keyword in self.inrpc_keywords:
                         # RFC 9595, Appendix B require to create SID for all
                         # action input and output schema nodes
@@ -784,6 +863,19 @@ class SidFile:
                 self.collect_inner_data_nodes(statement.i_grouping.i_children,
                                               prefix)
 
+    def collect_augment_in_submod(self, submod_include: statements.Statement, ctx: context.Context):
+        assert submod_include.keyword == 'include'
+        submod_rev = submod_include.search_one('revision-date')
+        submod_rev = submod_rev.arg if submod_rev else None
+
+        submod = ctx.get_module(submod_include.arg, submod_rev)
+        assert submod is not None
+
+        # augment must be at module/submodule toplevel
+        for substmt in submod.substmts:
+            if substmt.keyword == 'augment':
+                self.collect_in_substmts(substmt.substmts)
+
     def collect_in_leaf(self, statement):
         if self.sid_extension:
             for s in statement.substmts: # find type declaration
@@ -810,33 +902,43 @@ class SidFile:
     def get_path(self, statement, prefix=""):
         path = ""
 
-        #breakpoint()
-
         while statement.i_module is not None:
             if (statement.keyword != 'grouping'
                     and not self.has_yang_data_extension(statement)):
-                # Locate the data node parent
-                parent = statement.parent
-                while parent.i_module is not None:
-                    if (parent.keyword in self.module_keywords or
-                            parent.keyword ==
+                module = statement.parent
+                while module.i_module is not None:
+                    if (module.keyword in self.module_keywords or
+                            module.keyword ==
                             ('ietf-yang-structure-ext', 'structure') or
-                            parent.keyword ==
+                            module.keyword ==
                             ('ietf-yang-structure-ext', 'augment-structure')):
                         break
-                    parent = parent.parent
+                    module = module.parent
 
+                parent_is_toplevel_case = (statement.parent.keyword == 'case' and
+                        statement.parent.parent.parent.keyword in ("module", "submodule"))
+                if parent_is_toplevel_case:
+                    path = "/" + statement.i_module.arg + ":" + statement.arg \
+                            + path
+                    break
+
+                # This if statement guards the simple-form 'identifier' paths elements
+                # (A) we don't want /test-mod:toplevel-choice/test-mod:toplevel-case-a/a
+                # (B) we don't want /test-mod:toplevel-choice/toplevel-case-a/test-mod:a
+                # we want /test-mod:toplevel-choice/toplevel-case-a/a
                 if (prefix != "" or
-                        (parent.i_module is not None and
-                         parent.i_module == statement.i_module) or
-                        (statement.keyword == 'case' and 
-                         statement.i_module == statement.parent.i_module) or
-                        (statement.parent.keyword == 'case' and 
-                         statement.i_module == statement.parent.i_module)):
+                        (module.i_module is not None and
+                         module.main_module() == statement.main_module()) or
+                        # handles cases for case nodes children of toplevel choice (A)
+                        (statement.keyword == 'case' and
+                         statement.main_module() == statement.parent.main_module()) or
+                        # handles cases of children of case nodes children of toplevel choice (B)
+                        (statement.parent.keyword == 'case' and
+                         statement.main_module() == statement.parent.main_module())):
                     if statement.keyword not in ('case', 'choice'):
                         path = "/" + statement.arg + path
                 else:
-                    path = "/" + statement.i_module.arg + ":" + statement.arg \
+                    path = "/" + statement.main_module().arg + ":" + statement.arg \
                             + path
 
             statement = statement.parent
@@ -848,13 +950,14 @@ class SidFile:
                     identifier == item['identifier']):
                 item['lifecycle'] = 'o' # Item already assigned
                 return
-            
+
         if self.sid_extension and typename is not None:
             self.content['item'].append(collections.OrderedDict(
                 [('namespace', namespace), ('identifier', identifier),
                  ('status', 'unstable'),
-                 ('sid', -1), ('lifecycle', 'n'), ('type', typename)]))
-        else:   
+                 ('sid', -1), ('lifecycle', 'n'),
+                 ('type', typename)]))
+        else:
             self.content['item'].append(collections.OrderedDict(
                 [('namespace', namespace), ('identifier', identifier),
                 ('status', 'unstable'),
@@ -863,67 +966,93 @@ class SidFile:
 
     ########################################################
     # Create list of dependent module with optional revision
+    # Call only after validate_dep_revisions()
     def build_dependencies(self, module):
         imports = module.search('import')
 
         if 'dependency-revision' not in self.content and len(imports) > 0:
             self.content['dependency-revision'] = []
+            had_dep_rev = False
+        else:
+            had_dep_rev = True
 
-        for import_stmt in imports:
-            dep = collections.OrderedDict()
-            module_name = import_stmt.arg
-            dep['module-name'] = module_name
-            rev_stmt = import_stmt.search_one('revision-date')
-            revision = rev_stmt.arg if rev_stmt is not None else None
-            if revision is None:
-                entries = list(filter(
-                    lambda name_rev: name_rev[0] == module_name,
-                    module.i_ctx.modules))
+        dep_unification = {}
+        for dep in self.content.get('dependency-revision', []):
+            # the deps are already checked
+            dep_unification[dep['module-name']] = dep
 
-                if len(entries) == 1 and entries[0][1] == 'unknown':
-                    pass
-                else:
+        def mod_submod_iter(module):
+            yield module
+            for include in module.search("include"):
+                rev = include.search_one("revision-date")
+                submod = module.i_ctx.get_module(include.arg, rev)
+                if submod is not None:
+                    yield submod
+
+        for mod in mod_submod_iter(module):
+            imports = mod.search("import")
+            for import_stmt in imports:
+                dep = collections.OrderedDict()
+                module_name = import_stmt.arg
+                dep['module-name'] = module_name
+                rev_stmt = import_stmt.search_one('revision-date')
+                revision = rev_stmt.arg if rev_stmt is not None else None
+                if revision is None:
+                    entries = list(filter(
+                        lambda name_rev: name_rev[0] == module_name,
+                        module.i_ctx.modules))
+
+                    if len(entries) == 1 and entries[0][1] == 'unknown':
+                        pass
+                    else:
+                        latest = ''
+                        for ent in entries:
+                            if ent[1] == 'unknown':
+                                continue
+                            if ent[1] > latest:
+                                latest = ent[1]
+
+                        if latest == '':
+                            # We could not have 2 or more modules with same named
+                            # and no revision
+                            raise SidFileError('unreachable')
+                        ##assert re.match('[0-9]{4}-[0-9]{2}-[0-9]{2}', latest)
+
+                        revision = latest
+                        print(f"WARNING: Module '{module_name}' imported " +
+                            f"without revision, using latest revision {latest}")
+
+                if revision is None and module_name in module.i_ctx.revs:
                     latest = ''
-                    for ent in entries:
-                        if ent[1] == 'unknown':
+                    for r in module.i_ctx.revs[module_name]:
+                        if r[0] == 'unknown':
                             continue
-                        if ent[1] > latest:
-                            latest = ent[1]
+                        if r[0] > latest:
+                            latest = r[0]
 
                     if latest == '':
-                        # We could not have 2 or more modules with same named
-                        # and no revision
-                        raise SidFileError('unreachable')
-                    ##assert re.match('[0-9]{4}-[0-9]{2}-[0-9]{2}', latest)
+                        raise SidFileError(f'The .sid file requires the imported ' +
+                        f'modules to have revision statement. No module ' +
+                        f'"{module_name}" with revision statement found.')
 
                     revision = latest
-                    print(f"WARNING: Module '{module_name}' imported " +
-                        f"without revision, using latest revision {latest}")
+                    print(f"WARNING: Module '{module_name}' imported without " +
+                        f"revision, using latest revision {latest}")
 
-            if revision is None and module_name in module.i_ctx.revs:
-                latest = ''
-                for r in module.i_ctx.revs[module_name]:
-                    if r[0] == 'unknown':
-                        continue
-                    if r[0] > latest:
-                        latest = r[0]
+                if revision is None:
+                    raise SidFileError(f"Missing revision for module " +
+                        f"'{module_name}' for mandatory sid-file field " +
+                        f"'ietf-sid-file:sid-file/dependency-revision/module-revision'.") # noqa: E501
 
-                if latest == '':
-                    raise Exception(f'The .sid file requires the imported ' +
-                    'modules to have revision statement. No module ' +
-                    '"{module_name}" with revision statement found.')
+                dep['module-revision'] = revision
+                old_dep = dep_unification.get(module_name)
+                if old_dep is not None and (old_rev := old_dep['module-revision']) > revision:
+                    raise SidFileError(f"Module {module_name} is imported with older revision in YANG ({revision}) than in the .sid file ({old_rev})")
+                dep_unification[module_name] = dep
 
-                revision = latest
-                print(f"WARNING: Module '{module_name}' imported without " +
-                    f"revision, using latest revision {latest}")
-
-            if revision is None:
-                raise SidFileError(f"Missing revision for module " +
-                    f"'{module_name}' for mandatory sid-file field " +
-                    "'ietf-sid-file:sid-file/dependency-revision/module-revision'.") # noqa: E501
-
-            dep['module-revision'] = revision
-            self.content['dependency-revision'].append(dep)
+        self.content['dependency-revision'] = sorted(dep_unification.values(), key=lambda d: d['module-name'])
+        if self.content['dependency-revision'] == [] and not had_dep_rev:
+            del self.content['dependency-revision']
 
     ########################################################
     # Sort the items list by 'namespace' and 'identifier'
@@ -1030,6 +1159,8 @@ class SidFile:
                   "with a 'deprecated' or 'obsolete' status.")
 
     ########################################################
+    DESCRIPTION_REGEX = (r"Generated by pyang \d+(.\d+)?(.\d+)?(.)*" +
+        r"at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")
 
     def find_sid(self, id):
         for e in self.content['item']:
@@ -1053,7 +1184,13 @@ class SidFile:
         if not self.finalize_sid:
             sid_cont['sid-file-status'] = 'unpublished'
         descr = self.content.get('description', None)
-        if descr:
+        if not descr or (re.match(self.DESCRIPTION_REGEX, descr) and self.update):
+            # the the format YYYY-mm-ddTHH:MM:SSZ where T,Z are constant
+            # YYYY - year (4 digits %Y), mm - month (2 digits %m), dd - day (2 digits %d)
+            # HH - hours (2 digits %H), MM - minutes (2 digits %M), SS - seconds (2 digits %S)
+            utc_time = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            sid_cont['description'] = f"Generated by pyang {pyang.__version__} at {utc_time}"
+        else:
             sid_cont['description'] = descr
         dep_revision = self.content.get('dependency-revision', [])
         if dep_revision:
@@ -1061,14 +1198,17 @@ class SidFile:
         ranges = self.content.get('assignment-range', [])
         if ranges:
             sid_cont['assignment-range'] = copy.deepcopy(ranges)
-            for range in sid_cont['assignment-range']:
+            for srange in sid_cont['assignment-range']:
                 # According to RFC 7951, uint64 values are represented
                 # as JSON strings for interoperability
-                range['entry-point'] = str(range['entry-point'])
-                range['size'] = str(range['size'])
+                srange['entry-point'] = str(srange['entry-point'])
+                srange['size'] = str(srange['size'])
 
         items = self.content.get('item', [])
+        myorderedstuff = self.content.copy()
         if items:
+            # XXX why do we need a separate myorderedstuff?
+            myorderedstuff['item'].sort(key=lambda item: item['sid'])
             sid_cont['item'] = copy.deepcopy(items)
             sid_cont['item'].sort(key=lambda item: item['sid'])
 
@@ -1081,7 +1221,7 @@ class SidFile:
             print("Finalizing unstable allocations to %s"
                   % (self.module_revision))
             for item in sid_cont['item']:
-                if item['status'] == 'unstable':
+                if item.get('status', 'stable') == 'unstable':
                     print("  finalized %s" % (item['identifier']))
                     # status 'stable' is default enum
                     del item['status']
@@ -1165,6 +1305,8 @@ class SidFile:
         for item in items:
             type_ = item.pop('type', None)
             label = item.pop('label', None)
+            typename = item.pop('type', None)
+
             if not type_:
                 pass
             elif type_ in ('Module', 'Submodule'):
@@ -1185,15 +1327,15 @@ class SidFile:
 
     @staticmethod
     def str_to_uint64(sid_cont: dict) -> dict:
-        ranges = sid_cont.get('assignment-range', [])
-        for range in ranges:
-            if 'entry-point' not in range:
+        all_ranges = sid_cont.get('assignment-range', [])
+        for srange in all_ranges:
+            if 'entry-point' not in srange:
                 raise SidFileError("mandatory key 'entry-point' not present")
-            if 'size' not in range:
+            if 'size' not in srange:
                 raise SidFileError("mandatory field 'size' not present")
 
-            range['entry-point'] = int(range['entry-point'])
-            range['size'] = int(range['size'])
+            srange['entry-point'] = int(srange['entry-point'])
+            srange['size'] = int(srange['size'])
 
         items = sid_cont.get('item', [])
         for item in items:

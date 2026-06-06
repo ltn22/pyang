@@ -1,0 +1,31 @@
+module test-with-key-mapping {
+  namespace "http://example.com/test-key-mapping";
+  prefix tkm;
+
+  revision 2026-04-16;
+
+  container devices {
+    list device {
+      key "device-id";
+      leaf device-id {
+        type uint32;
+      }
+      leaf name {
+        type string;
+      }
+    }
+
+    list interface {
+      key "if-name if-type";
+      leaf if-name {
+        type string;
+      }
+      leaf if-type {
+        type string;
+      }
+      leaf status {
+        type string;
+      }
+    }
+  }
+}

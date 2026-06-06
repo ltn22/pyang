@@ -2,6 +2,7 @@
   "ietf-sid-file:sid-file": {
     "module-name": "aug-b",
     "module-revision": "2025-08-25",
+    "description": "pyang description",
     "dependency-revision": [
       {
         "module-name": "aug-a",
@@ -22,23 +23,13 @@
       },
       {
         "namespace": "data",
-        "identifier": "/aug-a:top-level/aug-b:c",
+        "identifier": "/aug-b:b",
         "sid": "1101"
       },
       {
         "namespace": "data",
-        "identifier": "/aug-a:top-level/aug-b:c/c",
+        "identifier": "/aug-b:c",
         "sid": "1102"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/aug-a:top-level/aug-b:d",
-        "sid": "1103"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/aug-a:top-level/b/aug-b:b",
-        "sid": "1104"
       }
     ]
   }

@@ -11,6 +11,9 @@ from pyang import statements
 from pyang import error
 from pyang.error import err_add
 
+# TODO maybe rewrite the code so that the sx:augment-structure code
+# does not use 'i_target_node', but something like 'i_target_sx_struct'
+
 module_name = 'ietf-yang-structure-ext'
 
 class StructurePlugin(plugin.PyangPlugin):

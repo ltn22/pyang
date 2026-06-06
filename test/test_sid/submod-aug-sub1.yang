@@ -1,0 +1,17 @@
+submodule submod-aug-sub1 {
+  yang-version 1.1;
+
+  belongs-to submod-aug-main {
+    prefix sam;
+  }
+
+  import submod-aug-dest {
+    prefix sad;
+  }
+
+  augment "/sad:destination" {
+    leaf new-node-sub1 {
+      type binary;
+    }
+  }
+}

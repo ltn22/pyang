@@ -2,6 +2,7 @@
   "ietf-sid-file:sid-file": {
     "module-name": "aug-a",
     "module-revision": "2025-08-25",
+    "description": "pyang description",
     "assignment-range": [
       {
         "entry-point": "1000",
@@ -16,23 +17,8 @@
       },
       {
         "namespace": "data",
-        "identifier": "/aug-a:top-level",
+        "identifier": "/aug-a:a",
         "sid": "1001"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/aug-a:top-level/a",
-        "sid": "1002"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/aug-a:top-level/a/a",
-        "sid": "1003"
-      },
-      {
-        "namespace": "data",
-        "identifier": "/aug-a:top-level/b",
-        "sid": "1004"
       }
     ]
   }

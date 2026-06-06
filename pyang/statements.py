@@ -1883,7 +1883,9 @@ def v_expand_2_augment(ctx, stmt):
                          c.pos))
         elif (stmt.i_target_node.keyword not in
               ('container', 'list', 'choice', 'case', 'input',
-                  'output', 'notification', '__tmp_augment__')):
+                  'output', 'notification', '__tmp_augment__') and
+              (stmt.i_target_node.keyword != ('ietf-yang-structure-ext', 'structure') or
+               stmt.keyword != ('ietf-yang-structure-ext', 'augment-structure'))):
             nd = stmt.i_target_node
             err_add(ctx.errors, stmt.pos, 'BAD_TARGET_NODE',
                     (nd.i_module.i_modulename, nd.arg, nd.keyword))

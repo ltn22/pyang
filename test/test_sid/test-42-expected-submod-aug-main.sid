@@ -1,0 +1,69 @@
+{
+  "ietf-sid-file:sid-file": {
+    "module-name": "submod-aug-main",
+    "sid-file-status": "unpublished",
+    "description": "pyang description",
+    "dependency-revision": [
+      {
+        "module-name": "submod-aug-dest",
+        "module-revision": "2026-04-15"
+      }
+    ],
+    "assignment-range": [
+      {
+        "entry-point": "1200",
+        "size": "100"
+      }
+    ],
+    "item": [
+      {
+        "namespace": "module",
+        "identifier": "submod-aug-main",
+        "status": "unstable",
+        "sid": "1200"
+      },
+      {
+        "namespace": "module",
+        "identifier": "submod-aug-sub1",
+        "status": "unstable",
+        "sid": "1201"
+      },
+      {
+        "namespace": "module",
+        "identifier": "submod-aug-sub2",
+        "status": "unstable",
+        "sid": "1202"
+      },
+      {
+        "namespace": "module",
+        "identifier": "submod-aug-sub3",
+        "status": "unstable",
+        "sid": "1203"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/submod-aug-dest:destination/submod-aug-main:new-node-sub1",
+        "status": "unstable",
+        "sid": "1204"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/submod-aug-dest:destination/submod-aug-main:new-node-sub2",
+        "status": "unstable",
+        "sid": "1205"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/submod-aug-dest:destination/submod-aug-main:new-node1-sub3",
+        "status": "unstable",
+        "sid": "1206"
+      },
+      {
+        "namespace": "data",
+        "identifier": "/submod-aug-dest:destination/submod-aug-main:new-node2-sub3",
+        "status": "unstable",
+        "sid": "1207"
+      }
+    ]
+  }
+}
