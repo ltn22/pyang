@@ -583,22 +583,37 @@ def chk_mandatory(old, new, ctx):
             err_def_changed(oldmandatory, newmandatory, ctx)
 
 def chk_min_max(old, new, ctx):
+    # RFC 7950: 'min-elements' defaults to 0 and 'max-elements' defaults to
+    # 'unbounded', so an absent statement is equivalent to that default.  Fold
+    # the defaults into the comparison so that e.g. an added 'max-elements
+    # unbounded' (which equals the default) is not flagged as a restriction.
     oldmin = old.search_one('min-elements')
     newmin = new.search_one('min-elements')
     if newmin is None:
         pass
     elif oldmin is None:
-        err_def_added(newmin, ctx)
-    elif int(newmin.arg) > int(oldmin.arg):
+        if _min_elements_val(newmin.arg) > 0:
+            err_def_added(newmin, ctx)
+    elif _min_elements_val(newmin.arg) > _min_elements_val(oldmin.arg):
         err_def_changed(oldmin, newmin, ctx)
     oldmax = old.search_one('max-elements')
     newmax = new.search_one('max-elements')
     if newmax is None:
         pass
     elif oldmax is None:
-        err_def_added(newmax, ctx)
-    elif int(newmax.arg) < int(oldmax.arg):
+        if _max_elements_val(newmax.arg) < float('inf'):
+            err_def_added(newmax, ctx)
+    elif _max_elements_val(newmax.arg) < _max_elements_val(oldmax.arg):
         err_def_changed(oldmax, newmax, ctx)
+
+def _min_elements_val(arg):
+    # default for min-elements is 0 (RFC 7950 7.7.5)
+    return int(arg)
+
+def _max_elements_val(arg):
+    # 'unbounded' is a valid value for max-elements (RFC 7950 7.7.4) and
+    # represents no upper bound, i.e. positive infinity.
+    return float('inf') if arg == 'unbounded' else int(arg)
 
 def chk_presence(old, new, ctx):
     oldpresence = old.search_one('presence')
