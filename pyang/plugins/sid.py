@@ -312,6 +312,7 @@ class SidFile:
     EXT_PREFIX = 'ietf-sid-file-extension:'
     EXT_TYPE = EXT_PREFIX + 'type'
     EXT_KEYS = EXT_PREFIX + 'keys'
+    EXT_FLAG = EXT_PREFIX + 'sid-extensions'
 
     def __init__(self):
         self.sid_file_created = False
@@ -498,6 +499,10 @@ class SidFile:
                                 self.content[key]):
                     raise SidFileError("key 'module-revision', " +
                         "invalid format")
+
+            elif key == self.EXT_FLAG:
+                if not isinstance(self.content[key], bool):
+                    raise SidFileError("key '%s', invalid value" % key)
 
             elif key == 'sid-file-version':
                 if not isinstance(self.content[key], int):
@@ -693,6 +698,12 @@ class SidFile:
     ########################################################
     # Collection of items defined in .yang file(s)
     def collect_module_items(self, module):
+        # The header flag is rebuilt from the command line, so a .sid file
+        # whose flag disagrees with it has to be regenerated.
+        if bool(self.content.get(self.EXT_FLAG, False)) != \
+                bool(self.sid_extension):
+            self.is_consistent = False
+
         if 'item' not in self.content:
             self.content['item'] = []
 
@@ -1119,6 +1130,11 @@ class SidFile:
         sid_cont['module-name'] = self.content['module-name']
         if self.content['module-revision'] != 'unknown':
             sid_cont['module-revision'] = self.content['module-revision']
+        if self.sid_extension:
+            # Tells a reader that the items carry a 'type' or a 'keys',
+            # without having to parse them. The leaf defaults to false, so a
+            # .sid file without extension (RFC 9595) simply omits it.
+            sid_cont[self.EXT_FLAG] = True
         if self.update:
             curr = self.content.get('sid-file-version', 0)
             sid_cont['sid-file-version'] = curr + 1
