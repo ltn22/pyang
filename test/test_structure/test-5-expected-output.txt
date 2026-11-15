@@ -1,0 +1,12 @@
+module: test-5-aug-struct-root
+
+  structure doc:
+    +-- payload
+    |  +-- value?   string
+    |  +-- extra?   string
+    +-- flag?      boolean
+
+  augment-structure /ex:doc/ex:payload:
+    +-- extra?   string
+  augment-structure /ex:doc:
+    +-- flag?   boolean

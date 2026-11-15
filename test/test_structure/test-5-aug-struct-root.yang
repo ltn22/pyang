@@ -1,0 +1,34 @@
+module test-5-aug-struct-root {
+  yang-version 1.1;
+  namespace "urn:example:aug-struct-root";
+  prefix ex;
+
+  import ietf-yang-structure-ext {
+    prefix sx;
+    revision-date 2020-06-17;
+  }
+
+  sx:structure doc {
+    container payload {
+      leaf value {
+        type string;
+      }
+    }
+  }
+
+  // Targets a descendant of the structure: accepted by pyang.
+  sx:augment-structure "/ex:doc/ex:payload" {
+    leaf extra {
+      type string;
+    }
+  }
+
+  // Targets the root of the structure: rejected by pyang,
+  // accepted by libyang/yanglint.
+  sx:augment-structure "/ex:doc" {
+    leaf flag {
+      type boolean;
+      default "false";
+    }
+  }
+}

@@ -1,7 +1,7 @@
 PYANG?= pyang
 
-.PHONY: test test1 test2 test3 test4
-test: test1 test2 test3 test4
+.PHONY: test test1 test2 test3 test4 test5
+test: test1 test2 test3 test4 test5
 
 test1:
 	# Test tree for strcuture (duplicit test)
@@ -18,3 +18,7 @@ test3:
 test4:
 	# Test bad augment-structure -- target must be structure descendant
 	$(PYANG) -p ../../modules/ietf test-4-bad-aug.yang 2>&1 | diff -b test-4-expected-output.txt -
+
+test5:
+	# Test augment-structure targeting the root of the structure
+	$(PYANG) -f tree --tree-print-structures -p ../../modules/ietf test-5-aug-struct-root.yang 2>&1 | diff -b test-5-expected-output.txt -

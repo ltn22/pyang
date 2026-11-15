@@ -79,6 +79,9 @@ def add_copy_uses_keyword(keyword):
 def add_copy_augment_keyword(keyword):
     _copy_augment_keywords.append(keyword)
 
+def add_augment_target_keyword(keyword):
+    _augment_target_keywords.append(keyword)
+
 def add_xpath_function(name, input_params, output_param):
     xpath.add_extra_xpath_function(name, input_params, output_param)
 
@@ -298,6 +301,11 @@ _keywords_with_no_explicit_config = ['action', 'rpc', 'notification']
 _copy_uses_keywords = []
 
 _copy_augment_keywords = []
+
+# Keywords that an 'augment' may target.  A plugin that defines an
+# extension holding data definition statements adds its keyword here.
+_augment_target_keywords = ['container', 'list', 'choice', 'case', 'input',
+                            'output', 'notification', '__tmp_augment__']
 
 _refinements = [
     # (<keyword>, <list of keywords for which <keyword> can be refined>,
@@ -1881,9 +1889,7 @@ def v_expand_2_augment(ctx, stmt):
                         (util.keyword_to_str(c.raw_keyword),
                          util.keyword_to_str(stmt.i_target_node.raw_keyword),
                          c.pos))
-        elif (stmt.i_target_node.keyword not in
-              ('container', 'list', 'choice', 'case', 'input',
-                  'output', 'notification', '__tmp_augment__')):
+        elif stmt.i_target_node.keyword not in _augment_target_keywords:
             nd = stmt.i_target_node
             err_add(ctx.errors, stmt.pos, 'BAD_TARGET_NODE',
                     (nd.i_module.i_modulename, nd.arg, nd.keyword))

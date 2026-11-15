@@ -31,6 +31,8 @@ def pyang_plugin_init():
     statements.add_data_keyword(sx)
     statements.add_keyword_with_children(sx)
     statements.add_keywords_with_no_explicit_config(sx)
+    # RFC 8791 allows an augment-structure to target the structure itself
+    statements.add_augment_target_keyword(sx)
     asx = (module_name, 'augment-structure')
     statements.add_data_keyword(asx)
     statements.add_keyword_with_children(asx)
