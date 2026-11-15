@@ -307,9 +307,19 @@ class SidFile:
     IETF_SID_FILE = 'ietf-sid-file:sid-file'
     SID_FILE_STATUSES = ('published', 'unpublished')
 
+    # Members added to each item by the ietf-sid-file-extension module
+    # (choice node-info: 'type' for a leaf, 'keys' for a list).
+    EXT_PREFIX = 'ietf-sid-file-extension:'
+    EXT_TYPE = EXT_PREFIX + 'type'
+    EXT_KEYS = EXT_PREFIX + 'keys'
+
     def __init__(self):
         self.sid_file_created = False
         self.is_consistent = True
+        # Key leaves of each YANG list, kept as paths because the SIDs
+        # are not assigned yet: {list path: [key path, ...]} in the
+        # order of the 'key' statement.
+        self.list_key_paths = {}
         self.check_consistency = False
         self.list_content = False
         self.finalize_sid = False
@@ -604,6 +614,13 @@ class SidFile:
                         raise SidFileError("invalid 'status' value '%s'."
                                            % item[key])
 
+                elif key in (self.EXT_TYPE, self.EXT_KEYS, 'type'):
+                    # Members of the SID file extension. They are always
+                    # rebuilt from the YANG module, so they are not validated
+                    # here. 'type' is the former unprefixed name, accepted so
+                    # that an older .sid file can still be read and migrated.
+                    pass
+
                 else:
                     raise SidFileError("invalid key '%s'." % key)
 
@@ -679,8 +696,6 @@ class SidFile:
         if 'item' not in self.content:
             self.content['item'] = []
 
-        if self.sid_extension and 'key-mapping' not in self.content: 
-            self.content['key-mapping'] = {}
 
         for item in self.content['item']:
             # Set to 'd' deleted, updated to 'o' if present in .yang file
@@ -701,7 +716,8 @@ class SidFile:
 
             elif (statement.keyword in self.module_container_keywords or
                   statement.keyword in self.choice_keywords):
-                self.merge_item('data', self.get_path(statement))
+                self.merge_item('data', self.get_path(statement),
+                                key_paths=self.key_paths_of(statement))
                 self.collect_inner_data_nodes(statement.i_children)
 
             elif statement.keyword == 'rpc':
@@ -732,22 +748,24 @@ class SidFile:
                     ('ietf-yang-structure-ext', 'augment-structure'):
                 self.collect_in_substmts(substmt.substmts)
 
+    def key_paths_of(self, statement, prefix=""):
+        """Paths of the key leaves of a YANG list, in 'key' order.
+
+        None for any other statement. The SIDs are not assigned yet, so
+        the paths are kept and resolved when the file is generated."""
+        if not self.sid_extension or statement.keyword != 'list':
+            return None
+        return [self.get_path(key, prefix)
+                for key in getattr(statement, 'i_key', None) or []]
+
     def collect_inner_data_nodes(self, statements, prefix=""):
         for statement in statements:
             if statement.keyword in self.leaf_keywords:
                 self.collect_in_leaf(statement)
 
             elif statement.keyword in self.container_keywords:
-                self.merge_item('data', self.get_path(statement, prefix))
-                if self.sid_extension: # create key-mapping for list, with the path of the keys as value
-                    if statement.keyword == "list":
-                        keys = []
-        
-                        if hasattr(statement, 'i_key') and statement.i_key:
-                            for k in statement.i_key:
-                                keys.append(self.get_path(k, prefix))
-        
-                        self.content["key-mapping"][self.get_path(statement, prefix)] = keys
+                self.merge_item('data', self.get_path(statement, prefix),
+                                key_paths=self.key_paths_of(statement, prefix))
                 self.collect_inner_data_nodes(statement.i_children, prefix)
 
             elif statement.keyword in self.choice_keywords:
@@ -776,7 +794,8 @@ class SidFile:
 
             elif (statement.keyword in self.container_keywords or
                   statement.keyword in self.choice_keywords):
-                self.merge_item('data', self.get_path(statement))
+                self.merge_item('data', self.get_path(statement),
+                                key_paths=self.key_paths_of(statement))
                 self.collect_in_substmts(statement.substmts)
 
             elif statement.keyword == 'uses':
@@ -784,33 +803,44 @@ class SidFile:
                 self.collect_inner_data_nodes(statement.i_grouping.i_children,
                                               prefix)
 
+    @staticmethod
+    def type_entries(type_stmt):
+        """Entries of the 'type' list of the SID extension.
+
+        One entry per member type for a union (in the order of the
+        YANG module, a JSON value is interpreted with the first member
+        that matches), a single entry otherwise. 'base-type' is the
+        YANG built-in type, even if the leaf uses a typedef."""
+        spec = type_stmt.i_type_spec
+        if spec.name == 'union':
+            entries = []
+            for member in spec.types:
+                entries.extend(SidFile.type_entries(member))
+            return entries
+
+        entry = collections.OrderedDict([('base-type', spec.name)])
+        if spec.name == 'enumeration':
+            entry['enumerate'] = [
+                collections.OrderedDict([('enum-value', value),
+                                         ('enum-name', name)])
+                for name, value in getattr(spec, 'enums', [])]
+        elif spec.name == 'bits':
+            entry['bits'] = [
+                collections.OrderedDict([('bit-position', position),
+                                         ('bit-name', name)])
+                for name, position in getattr(spec, 'bits', [])]
+        return [entry]
+
     def collect_in_leaf(self, statement):
+        entries = None
         if self.sid_extension:
-            for s in statement.substmts: # find type declaration
-                if s.keyword == "type":
-                    if s.i_type_spec.name == "identityref":
-                        typename = "identityref"
-
-                    elif s.i_type_spec.name == "enumeration":
-                        typename = {}
-                        for k, v in s.i_type_spec.enums:
-                            typename[str(v)] = k
-                    else:
-                        typename = s.arg
-
-                    if typename=="union": # union put all types in an array
-                        typename = []
-                        for t in s.i_type_spec.types:
-                            if t.i_type_spec.name == "identityref":
-                                typename.insert(0, "identityref") # put identityref first in the list as it is more specific than other types
-                            elif t.i_type_spec.name == "enumeration":
-                                enum_object = {}
-                                for k, v in t.i_type_spec.enums:
-                                    enum_object[str(v)] = k
-                                typename.append(enum_object)
-                            else:
-                                typename.append(t.arg)
-        self.merge_item('data', self.get_path(statement), typename if self.sid_extension else None)
+            type_stmt = statement.search_one('type')
+            if type_stmt is not None:
+                entries = self.type_entries(type_stmt)
+            else:  # anydata and anyxml have no type statement
+                entries = [collections.OrderedDict(
+                    [('base-type', statement.keyword)])]
+        self.merge_item('data', self.get_path(statement), entries)
 
     def get_path(self, statement, prefix=""):
         path = ""
@@ -842,7 +872,8 @@ class SidFile:
                         # handles cases of children of case nodes children of toplevel choice (B)
                         (statement.parent.keyword == 'case' and
                          statement.main_module() == statement.parent.main_module())):
-                    path = "/" + statement.arg + path
+                    if statement.keyword not in ('case', 'choice'):
+                        path = "/" + statement.arg + path
                 else:
                     path = "/" + statement.main_module().arg + ":" + statement.arg \
                             + path
@@ -850,23 +881,45 @@ class SidFile:
             statement = statement.parent
         return prefix + path
 
-    def merge_item(self, namespace, identifier, typename=None):
+    def set_extension(self, item, type_entries, key_paths):
+        # The extension is always rebuilt from the YANG module, never kept
+        # from a previous .sid file: an update migrates an older format (a
+        # 'type' member without module prefix, or the keys gathered in a
+        # table at the 'sid-file' level) to the current one.
+        legacy_type = item.pop('type', None)
+        old_type = item.pop(self.EXT_TYPE, None)
+        old_keys = item.pop(self.EXT_KEYS, None)
+
+        new_type = type_entries if self.sid_extension else None
+        new_keys = key_paths if self.sid_extension else None
+        if new_type is not None:
+            item[self.EXT_TYPE] = new_type
+        if new_keys is not None:
+            self.list_key_paths[item['identifier']] = new_keys
+
+        # 'keys' holds the SIDs of the key leaves, which are not assigned
+        # yet, so only its presence and its length can be compared here.
+        if (legacy_type is not None or old_type != new_type or
+                (old_keys is None) != (new_keys is None) or
+                (old_keys is not None and new_keys is not None and
+                 len(old_keys) != len(new_keys))):
+            self.is_consistent = False
+
+    def merge_item(self, namespace, identifier, type_entries=None,
+                   key_paths=None):
         for item in self.content['item']:
             if (namespace == item['namespace'] and
                     identifier == item['identifier']):
                 item['lifecycle'] = 'o' # Item already assigned
+                self.set_extension(item, type_entries, key_paths)
                 return
-            
-        if self.sid_extension and typename is not None:
-            self.content['item'].append(collections.OrderedDict(
-                [('namespace', namespace), ('identifier', identifier),
-                 ('status', 'unstable'),
-                 ('sid', -1), ('lifecycle', 'n'), ('type', typename)]))
-        else:   
-            self.content['item'].append(collections.OrderedDict(
-                [('namespace', namespace), ('identifier', identifier),
-                ('status', 'unstable'),
-                ('sid', -1), ('lifecycle', 'n')]))
+
+        item = collections.OrderedDict(
+            [('namespace', namespace), ('identifier', identifier),
+             ('status', 'unstable'),
+             ('sid', -1), ('lifecycle', 'n')])
+        self.set_extension(item, type_entries, key_paths)
+        self.content['item'].append(item)
         self.is_consistent = False
 
     ########################################################
@@ -1112,15 +1165,24 @@ class SidFile:
                     del item['status']
 
         if self.sid_extension:
-            key_mapping_sid = {}
-            for k, v in self.content['key-mapping'].items():
-                k_sid = self.find_sid(k)
-                v_sids = []
-                for e in v:
-                    v_sids.append(self.find_sid(e))
-                key_mapping_sid[k_sid] = v_sids
-
-            sid_cont['key-mapping'] = key_mapping_sid
+            # RFC 8791 does not allow the augmentation of the root of
+            # a YANG data structure, so the keys of a list are given in
+            # its own item, as the SIDs of its key leaves.
+            for item in sid_cont.get('item', []):
+                key_paths = self.list_key_paths.get(item['identifier'])
+                if key_paths is None:
+                    continue
+                key_sids = []
+                for key_path in key_paths:
+                    key_sid = self.find_sid(key_path)
+                    if key_sid is None:
+                        raise SidParsingError(
+                            "key '%s' of list '%s' has no SID."
+                            % (key_path, item['identifier']))
+                    # According to RFC 7951, uint64 values are
+                    # represented as JSON strings for interoperability
+                    key_sids.append(str(key_sid))
+                item[self.EXT_KEYS] = key_sids
 
 
         with open(self.output_file_name, 'w', encoding='utf-8') as outfile:
